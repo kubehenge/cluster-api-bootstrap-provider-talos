@@ -12,3 +12,8 @@ var CAPIVersion string
 
 // Components is the rendered provider components file the CRDs are read from; make integration sets it.
 var Components string
+
+// ClusterctlConfig is the clusterctl configuration naming the local repository Cluster API and
+// cert-manager are installed from, with their manifests checked and their images pinned by digest;
+// make integration sets it.
+var ClusterctlConfig string

@@ -50,11 +50,23 @@ MODULE := $(shell $(GO) list -m)
 
 ENV_NAME := cabpt-env
 ENV_DIR := $(abspath $(ARTIFACTS)/env)
+# Every image and manifest the integration environment pulls, pinned by digest or SHA-256: the Talos
+# configuration patches name the cluster's Kubernetes images, components.txt what clusterctl installs.
+ENV_PINS := internal/integration/env
+ENV_PATCH := $(ENV_PINS)/talos-patch.yaml
+ENV_PATCH_CONTROLPLANES := $(ENV_PINS)/talos-patch-controlplanes.yaml
+ENV_COMPONENTS := $(ENV_PINS)/components.txt
+# The cluster's Kubernetes version is the one its pinned API server image carries.
+KUBERNETES_VERSION = $(shell sed -nE 's|^image: registry\.k8s\.io/kube-apiserver:v([^@]+)@.*|\1|p' $(ENV_PATCH_CONTROLPLANES))
+# talosctl gives the control plane node the first address after the gateway and the worker the next.
+ENV_NODES := 10.5.0.2,10.5.0.3
 INTEGRATION_PKG := $(MODULE)/internal/integration
 # The integration tests install the Cluster API release go.mod requires.
+CAPI_VERSION = $(shell $(GO) list -m -f '{{.Version}}' sigs.k8s.io/cluster-api)
 INTEGRATION_LDFLAGS = -X $(INTEGRATION_PKG).TalosVersion=$(TALOS_VERSION) \
-	-X $(INTEGRATION_PKG).CAPIVersion=$(shell $(GO) list -m -f '{{.Version}}' sigs.k8s.io/cluster-api) \
-	-X $(INTEGRATION_PKG).Components=$(ENV_DIR)/bootstrap-components.yaml
+	-X $(INTEGRATION_PKG).CAPIVersion=$(CAPI_VERSION) \
+	-X $(INTEGRATION_PKG).Components=$(ENV_DIR)/bootstrap-components.yaml \
+	-X $(INTEGRATION_PKG).ClusterctlConfig=$(ENV_DIR)/clusterctl.yaml
 
 .DEFAULT_GOAL := help
 
@@ -118,8 +130,14 @@ unit: ## Run the unit tests under the race detector.
 .PHONY: env-up
 env-up: $(TALOSCTL) ## Create the Talos cluster in Docker the integration tests run against (linux/amd64).
 	@case "$(TALOS_IMAGE)" in *:$(TALOS_VERSION)@sha256:*) ;; *) echo "TALOS_IMAGE is no image of Talos $(TALOS_VERSION)"; exit 1 ;; esac
+	@test -n "$(KUBERNETES_VERSION)" || { echo "$(ENV_PATCH_CONTROLPLANES) names no kube-apiserver image"; exit 1; }
+	@if grep -hoE '/(kubelet|kube-apiserver|kube-controller-manager|kube-scheduler|kube-proxy):[^@]+@' $(ENV_PATCH) $(ENV_PATCH_CONTROLPLANES) | \
+		grep -vxE '/[a-z-]+:v$(subst .,\.,$(KUBERNETES_VERSION))@'; then \
+		echo "the Kubernetes images above are not of Kubernetes $(KUBERNETES_VERSION), as the API server is"; exit 1; fi
 	mkdir -p $(ENV_DIR)
-	$(TALOSCTL) cluster create docker --name=$(ENV_NAME) --image=$(TALOS_IMAGE) \
+	$(TALOSCTL) cluster create docker --name=$(ENV_NAME) --image=$(TALOS_IMAGE) --workers=1 \
+		--kubernetes-version=$(KUBERNETES_VERSION) \
+		--config-patch=@$(ENV_PATCH) --config-patch-controlplanes=@$(ENV_PATCH_CONTROLPLANES) \
 		--talosconfig-destination=$(ENV_DIR)/talosconfig
 	$(TALOSCTL) kubeconfig $(ENV_DIR)/kubeconfig --talosconfig=$(ENV_DIR)/talosconfig --nodes=10.5.0.2 --force
 
@@ -129,11 +147,14 @@ env-down: $(TALOSCTL) ## Remove the cluster env-up created.
 	rm -rf $(ENV_DIR)
 
 .PHONY: integration
-integration: $(KUSTOMIZE) ## Run the integration tests against the cluster env-up created; they install Cluster API in it.
+integration: $(KUSTOMIZE) $(TALOSCTL) ## Run the integration tests against the cluster env-up created; they install Cluster API in it.
 	mkdir -p $(ENV_DIR)
 	$(KUSTOMIZE) build config/default > $(ENV_DIR)/bootstrap-components.yaml
+	hack/integration-components.sh $(ENV_COMPONENTS) $(ENV_DIR) $(CAPI_VERSION)
 	KUBECONFIG=$(ENV_DIR)/kubeconfig CGO_ENABLED=1 $(GO) test -race -count=1 -timeout=30m -v \
 		-ldflags "$(INTEGRATION_LDFLAGS)" ./internal/integration/...
+	hack/check-images.sh $(TALOSCTL) $(ENV_DIR)/talosconfig $(ENV_NODES) \
+		$(ENV_COMPONENTS) $(ENV_PATCH) $(ENV_PATCH_CONTROLPLANES)
 
 .PHONY: image
 image: $(KO) ## Build the controller image with ko and push it to $(IMAGE); prints IMAGE@digest.

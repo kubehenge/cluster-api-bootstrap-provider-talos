@@ -39,9 +39,6 @@ jobs:
           echo "$RUNNER_TEMP/go/bin" >> "$GITHUB_PATH"
 
       - name: Checks
-        env:
-          # clusterctl reads the Cluster API releases through the GitHub API, which throttles anonymous calls.
-          GITHUB_TOKEN: ${{ github.token }}
         run: |
           make generate manifests
           make check-dirty
