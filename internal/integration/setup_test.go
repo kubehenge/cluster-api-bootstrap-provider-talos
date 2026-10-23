@@ -8,17 +8,17 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/siderolabs/go-pointer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -51,14 +51,16 @@ func setupSuite(t *testing.T) (context.Context, client.Client) {
 	ctx := context.Background()
 
 	if !skipCleanup {
-		// cancel context on first Ctrl+C, kill on second
-		var stop context.CancelFunc
-		ctx, stop = signal.NotifyContext(context.Background(), unix.SIGTERM, unix.SIGINT)
+		// cancel context on first Ctrl+C, kill on second; the goroutine watches its own context, as ctx
+		// is narrowed below while it runs
+		signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 		t.Cleanup(stop)
 		go func() {
-			<-ctx.Done()
+			<-signalCtx.Done()
 			stop()
 		}()
+
+		ctx = signalCtx
 
 		// reserve 1 minute for cleanup if possible
 		deadline, ok := t.Deadline()
@@ -207,8 +209,9 @@ func installCAPI(ctx context.Context, t *testing.T) {
 	t.Log("Getting CAPI core components versions ...")
 
 	initOpts := clusterctlclient.InitOptions{
+		CoreProvider:            "cluster-api:" + CAPIVersion,
 		BootstrapProviders:      []string{clusterctlclient.NoopProvider},
-		InfrastructureProviders: []string{"docker"},
+		InfrastructureProviders: []string{"docker:" + CAPIVersion},
 		ControlPlaneProviders:   []string{clusterctlclient.NoopProvider},
 		WaitProviders:           true,
 	}
@@ -245,7 +248,7 @@ func startTestEnv(ctx context.Context, t *testing.T) (*rest.Config, *envtest.Env
 
 	testEnv := &envtest.Environment{
 		Config:            cfg,
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", Artifacts, "bootstrap-talos", Tag)},
+		CRDDirectoryPaths: []string{Components},
 		CRDInstallOptions: envtest.CRDInstallOptions{
 			ErrorIfPathMissing: true,
 			MaxTime:            20 * time.Second,
@@ -308,7 +311,7 @@ func waitForWebhooks(ctx context.Context, t *testing.T, testEnv *envtest.Environ
 
 	t.Logf("Waiting for webhook port %d to be open prior to running tests", port)
 
-	timeout := 1 * time.Second
+	dialer := net.Dialer{Timeout: time.Second}
 
 	for {
 		select {
@@ -317,9 +320,9 @@ func waitForWebhooks(ctx context.Context, t *testing.T, testEnv *envtest.Environ
 			t.Fatalf("Failed to wait for webhook availability: %s.", ctx.Err())
 		}
 
-		conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), timeout)
+		conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, strconv.Itoa(port)))
 		if err != nil {
-			t.Logf("Webhook port is not ready, will retry in %v: %s", timeout, err)
+			t.Logf("Webhook port is not ready, will retry in %v: %s", dialer.Timeout, err)
 
 			continue
 		}

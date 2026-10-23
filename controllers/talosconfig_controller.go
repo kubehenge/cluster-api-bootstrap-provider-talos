@@ -30,9 +30,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/utils/ptr"
 	capiv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	bsutil "sigs.k8s.io/cluster-api/bootstrap/util"
 	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
@@ -48,6 +48,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 
 	bootstrapv1beta1 "github.com/siderolabs/cluster-api-bootstrap-provider-talos/api/v1beta1"
+	"github.com/siderolabs/cluster-api-bootstrap-provider-talos/internal/configowner"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -69,7 +70,7 @@ type TalosConfigReconciler struct {
 
 type TalosConfigScope struct {
 	Config      *bootstrapv1beta1.TalosConfig
-	ConfigOwner *bsutil.ConfigOwner
+	ConfigOwner *configowner.ConfigOwner
 	Cluster     *capiv1.Cluster
 }
 
@@ -118,7 +119,9 @@ func (r *TalosConfigReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 
 // +kubebuilder:rbac:groups=bootstrap.cluster.x-k8s.io,resources=talosconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=bootstrap.cluster.x-k8s.io,resources=talosconfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=bootstrap.cluster.x-k8s.io,resources=talosconfigs/finalizers,verbs=update
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters;clusters/status;machines;machines/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters/finalizers,verbs=update
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machinepools;machinepools/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
@@ -129,7 +132,7 @@ func (r *TalosConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Lookup the talosconfig config
 	config := &bootstrapv1beta1.TalosConfig{}
-	if err := r.Client.Get(ctx, req.NamespacedName, config); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, config); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
@@ -146,7 +149,27 @@ func (r *TalosConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Always attempt to Patch the TalosConfig object and status after each reconciliation.
 	defer func() {
 		// always update the readyCondition; the summary is represented using the "1 of x completed" notation.
-		conditions.SetSummaryCondition(config, config, bootstrapv1beta1.DataSecretAvailableCondition)
+		// The client config is reported only once the bootstrap data exists.
+		if err := conditions.SetSummaryCondition(config, config, bootstrapv1beta1.TalosConfigReadyCondition,
+			conditions.ForConditionTypes{
+				bootstrapv1beta1.DataSecretAvailableCondition,
+				bootstrapv1beta1.ClientConfigAvailableCondition,
+			},
+			conditions.IgnoreTypesIfMissing{
+				bootstrapv1beta1.ClientConfigAvailableCondition,
+			},
+			conditions.CustomMergeStrategy{
+				MergeStrategy: conditions.DefaultMergeStrategy(
+					conditions.ComputeReasonFunc(conditions.GetDefaultComputeMergeReasonFunc(
+						bootstrapv1beta1.TalosConfigNotReadyReason,
+						bootstrapv1beta1.TalosConfigReadyUnknownReason,
+						bootstrapv1beta1.TalosConfigReadyReason,
+					)),
+				),
+			},
+		); err != nil {
+			rerr = kerrors.NewAggregate([]error{rerr, err})
+		}
 		v1beta1conditions.SetSummary(config,
 			v1beta1conditions.WithConditions(
 				bootstrapv1beta1.DataSecretAvailableV1Beta1Condition,
@@ -156,12 +179,16 @@ func (r *TalosConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		patchOpts := []patch.Option{
 			patch.WithOwnedConditions{
 				Conditions: []string{
+					bootstrapv1beta1.TalosConfigReadyCondition,
 					bootstrapv1beta1.DataSecretAvailableCondition,
+					bootstrapv1beta1.ClientConfigAvailableCondition,
 				},
 			},
 			patch.WithOwnedV1Beta1Conditions{
 				Conditions: []capiv1.ConditionType{
+					capiv1.ReadyV1Beta1Condition,
 					bootstrapv1beta1.DataSecretAvailableV1Beta1Condition,
+					bootstrapv1beta1.ClientConfigAvailableV1Beta1Condition,
 				},
 			},
 		}
@@ -181,12 +208,12 @@ func (r *TalosConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Handle deleted talosconfigs
 	// We no longer set finalizers on talosconfigs, but we have to remove previously set finalizers
-	if !config.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !config.DeletionTimestamp.IsZero() {
 		return r.reconcileDelete(config)
 	}
 
 	// Look up the resource that owns this talosconfig if there is one
-	owner, err := bsutil.GetConfigOwner(ctx, r.Client, config)
+	owner, err := configowner.GetConfigOwner(ctx, r.Client, config)
 	if err != nil {
 		log.Error(err, "could not get owner resource")
 		return ctrl.Result{}, err
@@ -376,12 +403,12 @@ func (r *TalosConfigReconciler) reconcileGenerate(ctx context.Context, tcScope *
 	if len(config.Spec.ConfigPatches) > 0 {
 		marshalledPatches, err := json.Marshal(config.Spec.ConfigPatches)
 		if err != nil {
-			return fmt.Errorf("failure marshalling config patches: %s", err)
+			return fmt.Errorf("failure marshalling config patches: %w", err)
 		}
 
 		patch, err := jsonpatch.DecodePatch(marshalledPatches)
 		if err != nil {
-			return fmt.Errorf("failure decoding config patches from talosconfig to rfc6902 patch: %s", err)
+			return fmt.Errorf("failure decoding config patches from talosconfig to rfc6902 patch: %w", err)
 		}
 
 		patchedBytes, err := configpatcher.JSON6902([]byte(retData.BootstrapData), patch)
@@ -510,7 +537,13 @@ func (r *TalosConfigReconciler) userConfigs(ctx context.Context, scope *TalosCon
 			return retBundle, err
 		}
 
-		retBundle.TalosConfig, err = genTalosConfigFile(userConfig.K8sClusterConfig().ClusterName(), bundle, nil)
+		// A Talos 1.14 machine configuration can carry the machine CA without any cluster settings.
+		var clusterName string
+		if clusterConfig := userConfig.K8sClusterConfig(); clusterConfig != nil {
+			clusterName = clusterConfig.ClusterName()
+		}
+
+		retBundle.TalosConfig, err = genTalosConfigFile(clusterName, bundle, nil)
 		if err != nil {
 			r.Log.Error(err, "failed generating talosconfig for user-supplied machine configuration")
 		}
@@ -661,8 +694,6 @@ func (r *TalosConfigReconciler) genConfigs(ctx context.Context, scope *TalosConf
 		return retBundle, patches, err
 	}
 
-	r.Log.Info("patches are", "patches", patches)
-
 	retBundle.BootstrapData = dataOut
 
 	return retBundle, patches, nil
@@ -719,7 +750,7 @@ func (r *TalosConfigReconciler) ClusterToTalosConfigs(ctx context.Context, o cli
 	}
 
 	machineList := &capiv1.MachineList{}
-	if err := r.Client.List(ctx, machineList, selectors...); err != nil {
+	if err := r.List(ctx, machineList, selectors...); err != nil {
 		return nil
 	}
 
@@ -733,7 +764,7 @@ func (r *TalosConfigReconciler) ClusterToTalosConfigs(ctx context.Context, o cli
 
 	if feature.Gates.Enabled(feature.MachinePool) {
 		machinePoolList := &capiv1.MachinePoolList{}
-		if err := r.Client.List(ctx, machinePoolList, selectors...); err != nil {
+		if err := r.List(ctx, machinePoolList, selectors...); err != nil {
 			return nil
 		}
 

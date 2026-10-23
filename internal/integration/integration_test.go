@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	bootstrapv1beta1 "github.com/siderolabs/cluster-api-bootstrap-provider-talos/api/v1beta1"
 	"github.com/siderolabs/gen/xslices"
 	"github.com/siderolabs/talos/pkg/machinery/config"
 	"github.com/siderolabs/talos/pkg/machinery/config/encoder"
@@ -30,10 +29,14 @@ import (
 	capiv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
+
+	bootstrapv1beta1 "github.com/siderolabs/cluster-api-bootstrap-provider-talos/api/v1beta1"
 )
 
 func TestIntegration(t *testing.T) {
 	require.NotEmpty(t, TalosVersion)
+	require.NotEmpty(t, CAPIVersion)
+	require.NotEmpty(t, Components)
 
 	ctx, c := setupSuite(t)
 

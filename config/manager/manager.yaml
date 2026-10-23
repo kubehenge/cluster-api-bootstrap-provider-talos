@@ -16,9 +16,7 @@ spec:
         control-plane: controller-manager
     spec:
       containers:
-        - command:
-            - /manager
-          args:
+        - args:
             - --enable-leader-election
             - "--feature-gates=MachinePool=${EXP_MACHINE_POOL:=false}"
             - "--diagnostics-address=${CAPI_DIAGNOSTICS_ADDRESS:=:8443}"
@@ -54,7 +52,10 @@ spec:
               drop:
                 - ALL
             privileged: false
+            runAsNonRoot: true
             runAsUser: 65532
             runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
           terminationMessagePolicy: FallbackToLogsOnError
       terminationGracePeriodSeconds: 10

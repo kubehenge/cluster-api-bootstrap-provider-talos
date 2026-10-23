@@ -1,0 +1,42 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - unconvert
+    - usestdlibvars
+  settings:
+    gosec:
+      excludes:
+        # Integer conversions between replica counts and Talos API fields are bounded by the API.
+        - G115
+  exclusions:
+    generated: strict
+    presets:
+      - std-error-handling
+    rules:
+      # The served v1alpha3 API is built on Cluster API's v1beta1 types until it stops being served.
+      - path: api/v1alpha3/
+        linters: [staticcheck]
+        text: SA1019
+      # The v1beta1 contract conditions stay populated in the deprecated status block while clients may read them.
+      - linters: [staticcheck]
+        text: 'SA1019: sigs\.k8s\.io/cluster-api/api/core/v1beta2\.(Conditions|ConditionType) is deprecated'
+      - path: _test\.go
+        linters: [gosec]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/siderolabs/cluster-api-bootstrap-provider-talos
