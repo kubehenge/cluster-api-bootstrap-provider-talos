@@ -1,7 +1,8 @@
----
+# This patch adds the annotation cert-manager injects the webhook CA by; the replacements in
+# kustomization.yaml fill in the certificate's namespace and name.
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: validating-webhook-configuration
   annotations:
-    cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)
+    cert-manager.io/inject-ca-from: CERTIFICATE_NAMESPACE_PLACEHOLDER/CERTIFICATE_NAME_PLACEHOLDER
