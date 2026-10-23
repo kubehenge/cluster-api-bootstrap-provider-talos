@@ -510,7 +510,13 @@ func (r *TalosConfigReconciler) userConfigs(ctx context.Context, scope *TalosCon
 			return retBundle, err
 		}
 
-		retBundle.TalosConfig, err = genTalosConfigFile(userConfig.K8sClusterConfig().ClusterName(), bundle, nil)
+		// A Talos 1.14 machine configuration can carry the machine CA without any cluster settings.
+		var clusterName string
+		if clusterConfig := userConfig.K8sClusterConfig(); clusterConfig != nil {
+			clusterName = clusterConfig.ClusterName()
+		}
+
+		retBundle.TalosConfig, err = genTalosConfigFile(clusterName, bundle, nil)
 		if err != nil {
 			r.Log.Error(err, "failed generating talosconfig for user-supplied machine configuration")
 		}
