@@ -51,14 +51,16 @@ func setupSuite(t *testing.T) (context.Context, client.Client) {
 	ctx := context.Background()
 
 	if !skipCleanup {
-		// cancel context on first Ctrl+C, kill on second
-		var stop context.CancelFunc
-		ctx, stop = signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+		// cancel context on first Ctrl+C, kill on second; the goroutine watches its own context, as ctx
+		// is narrowed below while it runs
+		signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 		t.Cleanup(stop)
 		go func() {
-			<-ctx.Done()
+			<-signalCtx.Done()
 			stop()
 		}()
+
+		ctx = signalCtx
 
 		// reserve 1 minute for cleanup if possible
 		deadline, ok := t.Deadline()
