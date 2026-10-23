@@ -35,15 +35,18 @@ TALOS_VERSION := v1.14.4
 TALOSCTL_SHA256 := 0a69e3f9b682c5cd844b78dae305f6056ceb86c5fcc6913dcea78c527ed97cee
 TALOS_IMAGE := ghcr.io/siderolabs/talos:v1.14.4@sha256:0e85248bd679398e78bd97ce62179bafbbecf0a32df4d93579ee03e89fe1c4b0
 
-CONTROLLER_GEN := $(BIN)/controller-gen
-CONVERSION_GEN := $(BIN)/conversion-gen
-GOLANGCI_LINT := $(BIN)/golangci-lint
-KUSTOMIZE := $(BIN)/kustomize
-KO := $(BIN)/ko
-COSIGN := $(BIN)/cosign
+# The suffix `go install` gives binaries on the build platform, so the tool targets find what they built.
+GOEXE := $(shell $(GO) env GOEXE)
+CONTROLLER_GEN := $(BIN)/controller-gen$(GOEXE)
+CONVERSION_GEN := $(BIN)/conversion-gen$(GOEXE)
+GOLANGCI_LINT := $(BIN)/golangci-lint$(GOEXE)
+KUSTOMIZE := $(BIN)/kustomize$(GOEXE)
+KO := $(BIN)/ko$(GOEXE)
+COSIGN := $(BIN)/cosign$(GOEXE)
 TALOSCTL := $(BIN)/talosctl-$(TALOS_VERSION)
-# Each API version by name: controller-gen can fail on ./api/..., whose root holds no Go files.
-API_PACKAGES := $(patsubst %/,./%/...,$(sort $(wildcard api/*/)))
+# controller-gen is given import paths, never directories: it makes a directory root absolute with
+# filepath.Abs, which on some platforms drops a trailing `...` and leaves only the directory itself.
+MODULE := $(shell $(GO) list -m)
 
 ENV_NAME := cabpt-env
 ENV_DIR := $(abspath $(ARTIFACTS)/env)
@@ -90,13 +93,13 @@ tools: $(CONTROLLER_GEN) $(CONVERSION_GEN) $(GOLANGCI_LINT) $(KUSTOMIZE) $(KO) $
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) $(CONVERSION_GEN) ## Generate deepcopy and conversion code.
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./..."
-	$(CONVERSION_GEN) --output-file=zz_generated.conversion.go --go-header-file=./hack/boilerplate.go.txt ./api/v1alpha3
+	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=$(MODULE)/api/...
+	$(CONVERSION_GEN) --output-file=zz_generated.conversion.go --go-header-file=./hack/boilerplate.go.txt $(MODULE)/api/v1alpha3
 
 .PHONY: manifests
 manifests: $(CONTROLLER_GEN) ## Generate the CRDs, webhooks and RBAC rules.
-	$(CONTROLLER_GEN) crd:crdVersions=v1 $(addprefix paths=,$(API_PACKAGES)) output:crd:dir=config/crd/bases output:webhook:dir=config/webhook webhook
-	$(CONTROLLER_GEN) rbac:roleName=manager-role paths="./controllers/..." output:rbac:dir=config/rbac
+	$(CONTROLLER_GEN) crd:crdVersions=v1 paths=$(MODULE)/api/... output:crd:dir=config/crd/bases output:webhook:dir=config/webhook webhook
+	$(CONTROLLER_GEN) rbac:roleName=manager-role paths=$(MODULE)/controllers/... output:rbac:dir=config/rbac
 
 .PHONY: check-dirty
 check-dirty: ## Fail when the tree differs from what is committed, as after generate or manifests.
