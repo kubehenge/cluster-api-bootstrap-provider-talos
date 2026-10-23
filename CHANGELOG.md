@@ -2,7 +2,7 @@
 
 The changes of each release of this fork. The release pages on GitHub list every commit.
 
-## Unreleased
+## v0.7.0-alpha.5
 
 - The Go module is now `github.com/kubehenge/cluster-api-bootstrap-provider-talos`; code that imports the API types has to change its import paths.
 - The `cabpt-controller-manager-metrics-service` service now forwards to the manager's metrics port.
