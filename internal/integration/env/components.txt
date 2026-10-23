@@ -1,0 +1,22 @@
+# What the integration tests install with clusterctl: Cluster API core and its Docker infrastructure
+# provider at the release go.mod requires, and cert-manager. hack/integration-components.sh fetches
+# each manifest into a local clusterctl repository, checks it against its SHA-256 and names every
+# image in it by the digest listed here, so nothing is resolved by tag and clusterctl never asks
+# GitHub for anything.
+#
+# Manifests: <clusterctl provider label> <SHA-256> <release URL>
+cluster-api f70be959af4aba061b91cb264b3b1961ae38ca49e2eb542ccf2640146f5221a7 https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.14.3/core-components.yaml
+cluster-api c470906f551ac3e3e9aedc9a3e733b5a5994428693df43e95f65ea67c035f9fe https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.14.3/metadata.yaml
+infrastructure-docker 228d7936814703313cf468032d5da120725ec08383997f0fac0025c75c355d3f https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.14.3/infrastructure-components-development.yaml
+infrastructure-docker c470906f551ac3e3e9aedc9a3e733b5a5994428693df43e95f65ea67c035f9fe https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.14.3/metadata.yaml
+cert-manager e03b668ec8675214af6b0a671699d088f2601fa3878e0dbe1b41d3feafd1879f https://github.com/cert-manager/cert-manager/releases/download/v1.21.2/cert-manager.yaml
+
+# Images the manifests name, each with the tag the manifest names and its digest. The ACME solver
+# image is only an argument of the cert-manager controller and is never pulled here; it is pinned so
+# the installed controller would not resolve it by tag either.
+image registry.k8s.io/cluster-api/cluster-api-controller:v1.14.3@sha256:1110ddb0f4a9cfc1b557f305199e2d56911fe442edef6361e12e5cc4b11e23fd
+image gcr.io/k8s-staging-cluster-api/capd-manager:v1.14.3@sha256:6e02c5d059eb7372c9ecf6602e6b4a9b450087e92440a5979651d7e82f00ad73
+image quay.io/jetstack/cert-manager-cainjector:v1.21.2@sha256:c85268c64f2e0e76684bf5fe8906caff34b82523561c6affe0fae3546bd87562
+image quay.io/jetstack/cert-manager-controller:v1.21.2@sha256:70f532fd9cfde0b09d55687200942399d89838bc2d5d5b45152eb799a15912b8
+image quay.io/jetstack/cert-manager-webhook:v1.21.2@sha256:a60e2dac46dbb8a7f3df95c54ce941012f54c2fe022f0ee55aaa1ab40ed957ae
+image quay.io/jetstack/cert-manager-acmesolver:v1.21.2@sha256:699b40d622211ab7accad8a21b04c5fbaa1841ef7a12621e8de492dbe27b2503

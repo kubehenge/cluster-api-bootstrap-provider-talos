@@ -1,0 +1,14 @@
+# Machine configuration patch for every node of the integration tests' cluster. Talos names its
+# images by tag; these name the kubelet and the pod sandbox image by digest, and
+# hack/check-images.sh fails the run when any node pulled an image by tag.
+apiVersion: v1alpha1
+kind: KubeletConfig
+image: ghcr.io/siderolabs/kubelet:v1.37.1@sha256:3777bdaaa352e1f425dff9d8868a970923c66d0629bad16f935c41018a83d9d8
+---
+# containerd's built-in default sandbox image is a tag; the pinned one replaces it.
+apiVersion: v1alpha1
+kind: CRICustomizationConfig
+name: pinned-sandbox-image
+content: |
+  [plugins."io.containerd.cri.v1.images".pinned_images]
+    sandbox = "registry.k8s.io/pause:3.10.2@sha256:f548e0e8e3dc1896ca956272154dde3314e8cc4fde0a57577ee9fa1c63f5baf4"

@@ -51,9 +51,6 @@ jobs:
         run: make unit
       - name: Integration tests
         if: matrix.target == 'integration'
-        env:
-          # clusterctl reads the Cluster API releases through the GitHub API, which throttles anonymous calls.
-          GITHUB_TOKEN: ${{ github.token }}
         run: make env-up integration
       - name: Image and manifests
         if: matrix.target == 'build'

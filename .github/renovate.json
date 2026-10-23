@@ -25,6 +25,13 @@
       "matchPackageNames": ["k8s.io/code-generator"],
       "matchUpdateTypes": ["major", "minor"],
       "enabled": false
+    },
+    {
+      "description": "A new minor of Kubernetes, etcd, CoreDNS or Flannel in the integration tests' cluster needs a Talos release that runs it, so it comes in a pull request of its own and does not hold back the rest.",
+      "matchFileNames": ["internal/integration/env/talos-patch*.yaml"],
+      "matchUpdateTypes": ["major", "minor"],
+      "groupName": "integration cluster minors",
+      "groupSlug": "integration-cluster-minors"
     }
   ],
   "customManagers": [
@@ -42,6 +49,24 @@
       "managerFilePatterns": ["/^Makefile$/"],
       "matchStrings": [
         "TALOS_IMAGE := (?<depName>[^:@\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "description": "The manifests the integration tests install with clusterctl, named by release URL and checked against their SHA-256.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^internal/integration/env/components\\.txt$/"],
+      "matchStrings": [
+        "(?<currentDigest>[0-9a-f]{64}) https://github\\.com/(?<depName>[^/\\s]+/[^/\\s]+)/releases/download/(?<currentValue>[^/\\s]+)/\\S+"
+      ],
+      "datasourceTemplate": "github-release-attachments"
+    },
+    {
+      "description": "Every image the integration tests' cluster pulls, named by tag and digest: in the Talos configuration patches and in components.txt.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^internal/integration/env/[^/]+$/"],
+      "matchStrings": [
+        "(?<depName>[a-z0-9.-]+\\.[a-z]+(?::[0-9]+)?/[a-z0-9._/-]+):(?<currentValue>[A-Za-z0-9._-]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
       ],
       "datasourceTemplate": "docker"
     },

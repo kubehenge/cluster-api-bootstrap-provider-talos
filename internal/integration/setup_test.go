@@ -203,7 +203,7 @@ func setupTest(ctx context.Context, t *testing.T, c client.Client) string {
 func installCAPI(ctx context.Context, t *testing.T) {
 	t.Helper()
 
-	clusterctlClient, err := clusterctlclient.New(ctx, "")
+	clusterctlClient, err := clusterctlclient.New(ctx, ClusterctlConfig)
 	require.NoError(t, err, "failed to create clusterctl client")
 
 	t.Log("Getting CAPI core components versions ...")
@@ -218,6 +218,10 @@ func installCAPI(ctx context.Context, t *testing.T) {
 
 	images, err := clusterctlClient.InitImages(ctx, initOpts)
 	require.NoError(t, err, "failed to init images")
+
+	for _, image := range images {
+		require.Contains(t, image, "@sha256:", "clusterctl would install an image by tag")
+	}
 
 	t.Logf("Installing CAPI core components: %s ...", strings.Join(images, ", "))
 

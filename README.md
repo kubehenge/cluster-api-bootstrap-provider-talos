@@ -124,6 +124,7 @@ make image KO_FLAGS=--push=false TAG=dev
 ```
 
 The integration tests need Docker on linux/amd64: `make env-up integration` creates a Talos cluster with talosctl and runs them against it.
+Every image and manifest that environment pulls is pinned by digest or SHA-256 ([internal/integration](internal/integration/README.md)).
 
 ## Credits
 

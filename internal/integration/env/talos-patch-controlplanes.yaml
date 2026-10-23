@@ -1,0 +1,205 @@
+# Machine configuration patch for the control plane nodes of the integration tests' cluster: every
+# image the control plane runs, named by digest. The Kubernetes images share one version, which
+# make env-up also passes to talosctl as the cluster's Kubernetes version.
+cluster:
+  etcd:
+    image: registry.k8s.io/etcd:v3.7.3@sha256:0d27b9478551f431f82d1e0ddb6c87ad07ebae8b904c637f3a99213349523910
+---
+apiVersion: v1alpha1
+kind: KubeAPIServerConfig
+image: registry.k8s.io/kube-apiserver:v1.37.1@sha256:e190f914a6cc21cab9268485d1ae7282fdeab1315ac64b668aa42d732fd1061d
+---
+apiVersion: v1alpha1
+kind: KubeControllerManagerConfig
+image: registry.k8s.io/kube-controller-manager:v1.37.1@sha256:d470c1b85aebb466e971c06239cc6a31a4ac337a78600cef80375a79a1be1641
+---
+apiVersion: v1alpha1
+kind: KubeSchedulerConfig
+image: registry.k8s.io/kube-scheduler:v1.37.1@sha256:b6e2474a6c20309f0df1e7337364281fda95c6a0722259ba7f032a1e177d3f29
+---
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+image: registry.k8s.io/kube-proxy:v1.37.1@sha256:b9ae667ed9c160c9d5b66f55e8afec97fc5483a12db0ada5286541b0385cb9f4
+---
+apiVersion: v1alpha1
+kind: KubeCoreDNSConfig
+image: registry.k8s.io/coredns/coredns:v1.14.7@sha256:7efd3c635b03efd68c4e8398fc45f0d993d0e9ab016f72c1cefb0fd6d01aa286
+---
+# Talos builds its Flannel image reference from a constant and offers no setting for it, so its
+# Flannel is removed and the same Flannel is deployed below with the image named by digest.
+apiVersion: v1alpha1
+kind: KubeFlannelCNIConfig
+$patch: delete
+---
+# Talos's own Flannel manifests as it renders them for this cluster: the IPv4 pod subnet, the VXLAN
+# backend and the API server reached through KubePrism, since kube-proxy needs the network up first.
+apiVersion: v1alpha1
+kind: KubeInlineManifestConfig
+name: flannel
+manifest: |
+  apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: flannel
+    namespace: kube-system
+    labels:
+      k8s-app: flannel
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    name: flannel
+    labels:
+      k8s-app: flannel
+  rules:
+    - apiGroups: [""]
+      resources: [pods, nodes, namespaces]
+      verbs: [get, list, watch]
+    - apiGroups: [""]
+      resources: [nodes/status]
+      verbs: [patch]
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    name: flannel
+    labels:
+      k8s-app: flannel
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: flannel
+  subjects:
+    - kind: ServiceAccount
+      name: flannel
+      namespace: kube-system
+  ---
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: kube-flannel-cfg
+    namespace: kube-system
+    labels:
+      k8s-app: flannel
+      tier: node
+  data:
+    cni-conf.json: |-
+      {
+        "name": "cbr0",
+        "cniVersion": "1.0.0",
+        "plugins": [
+          {
+            "type": "flannel",
+            "delegate": {
+              "hairpinMode": true,
+              "isDefaultGateway": true
+            }
+          },
+          {
+            "type": "portmap",
+            "capabilities": {
+              "portMappings": true
+            }
+          }
+        ]
+      }
+    net-conf.json: |-
+      {
+        "Network": "10.244.0.0/16",
+        "EnableNFTables": true,
+        "Backend": {
+          "Port": 4789,
+          "Type": "vxlan"
+        }
+      }
+  ---
+  apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    name: kube-flannel
+    namespace: kube-system
+    labels:
+      k8s-app: flannel
+      tier: node
+  spec:
+    selector:
+      matchLabels:
+        k8s-app: flannel
+        tier: node
+    template:
+      metadata:
+        labels:
+          k8s-app: flannel
+          tier: node
+      spec:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: kubernetes.io/os
+                      operator: In
+                      values: [linux]
+        initContainers:
+          - name: install-config
+            image: ghcr.io/siderolabs/flannel:0.28.9@sha256:d59edbe383a39783d35fae3c7abba5bc189dc8542963291296dbf9c3ded75ac8
+            command: [cp]
+            args: [-f, /etc/kube-flannel/cni-conf.json, /etc/cni/net.d/10-flannel.conflist]
+            volumeMounts:
+              - name: cni
+                mountPath: /etc/cni/net.d
+              - name: flannel-cfg
+                mountPath: /etc/kube-flannel/
+        containers:
+          - name: kube-flannel
+            image: ghcr.io/siderolabs/flannel:0.28.9@sha256:d59edbe383a39783d35fae3c7abba5bc189dc8542963291296dbf9c3ded75ac8
+            command: [/opt/bin/flanneld]
+            args: [--ip-masq, --kube-subnet-mgr]
+            env:
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: POD_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+              - name: EVENT_QUEUE_DEPTH
+                value: "5000"
+              - name: CONT_WHEN_CACHE_NOT_READY
+                value: "false"
+              - name: KUBERNETES_SERVICE_HOST
+                value: 127.0.0.1
+              - name: KUBERNETES_SERVICE_PORT
+                value: "7445"
+            resources:
+              requests:
+                cpu: 100m
+                memory: 50Mi
+            securityContext:
+              capabilities:
+                add: [NET_ADMIN, NET_RAW]
+              privileged: false
+            volumeMounts:
+              - name: run
+                mountPath: /run/flannel
+              - name: flannel-cfg
+                mountPath: /etc/kube-flannel/
+        hostNetwork: true
+        priorityClassName: system-node-critical
+        serviceAccountName: flannel
+        tolerations:
+          - effect: NoSchedule
+            operator: Exists
+          - effect: NoExecute
+            operator: Exists
+        volumes:
+          - name: run
+            hostPath:
+              path: /run/flannel
+          - name: cni
+            hostPath:
+              path: /etc/cni/net.d
+          - name: flannel-cfg
+            configMap:
+              name: kube-flannel-cfg

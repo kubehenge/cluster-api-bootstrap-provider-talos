@@ -37,6 +37,7 @@ func TestIntegration(t *testing.T) {
 	require.NotEmpty(t, TalosVersion)
 	require.NotEmpty(t, CAPIVersion)
 	require.NotEmpty(t, Components)
+	require.NotEmpty(t, ClusterctlConfig)
 
 	ctx, c := setupSuite(t)
 
