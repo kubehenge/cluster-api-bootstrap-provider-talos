@@ -18,7 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	bootstrapv1beta1 "github.com/siderolabs/cluster-api-bootstrap-provider-talos/api/v1beta1"
+	bootstrapv1beta1 "github.com/kubehenge/cluster-api-bootstrap-provider-talos/api/v1beta1"
 )
 
 func TestReconcileSummarisesReadyCondition(t *testing.T) {

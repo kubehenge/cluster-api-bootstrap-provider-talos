@@ -50,7 +50,7 @@ MODULE := $(shell $(GO) list -m)
 
 ENV_NAME := cabpt-env
 ENV_DIR := $(abspath $(ARTIFACTS)/env)
-INTEGRATION_PKG := github.com/siderolabs/cluster-api-bootstrap-provider-talos/internal/integration
+INTEGRATION_PKG := $(MODULE)/internal/integration
 # The integration tests install the Cluster API release go.mod requires.
 INTEGRATION_LDFLAGS = -X $(INTEGRATION_PKG).TalosVersion=$(TALOS_VERSION) \
 	-X $(INTEGRATION_PKG).CAPIVersion=$(shell $(GO) list -m -f '{{.Version}}' sigs.k8s.io/cluster-api) \

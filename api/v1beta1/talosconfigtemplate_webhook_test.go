@@ -17,7 +17,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	bootstrapv1beta1 "github.com/siderolabs/cluster-api-bootstrap-provider-talos/api/v1beta1"
+	bootstrapv1beta1 "github.com/kubehenge/cluster-api-bootstrap-provider-talos/api/v1beta1"
 )
 
 func updateContext() context.Context {

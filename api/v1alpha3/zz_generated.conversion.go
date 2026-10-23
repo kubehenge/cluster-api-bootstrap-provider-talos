@@ -12,7 +12,7 @@ package v1alpha3
 import (
 	unsafe "unsafe"
 
-	v1beta1 "github.com/siderolabs/cluster-api-bootstrap-provider-talos/api/v1beta1"
+	v1beta1 "github.com/kubehenge/cluster-api-bootstrap-provider-talos/api/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
