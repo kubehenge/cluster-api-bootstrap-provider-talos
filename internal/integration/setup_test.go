@@ -8,16 +8,17 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"os"
 	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/siderolabs/go-pointer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,7 +53,7 @@ func setupSuite(t *testing.T) (context.Context, client.Client) {
 	if !skipCleanup {
 		// cancel context on first Ctrl+C, kill on second
 		var stop context.CancelFunc
-		ctx, stop = signal.NotifyContext(context.Background(), unix.SIGTERM, unix.SIGINT)
+		ctx, stop = signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 		t.Cleanup(stop)
 		go func() {
 			<-ctx.Done()
@@ -308,7 +309,7 @@ func waitForWebhooks(ctx context.Context, t *testing.T, testEnv *envtest.Environ
 
 	t.Logf("Waiting for webhook port %d to be open prior to running tests", port)
 
-	timeout := 1 * time.Second
+	dialer := net.Dialer{Timeout: time.Second}
 
 	for {
 		select {
@@ -317,9 +318,9 @@ func waitForWebhooks(ctx context.Context, t *testing.T, testEnv *envtest.Environ
 			t.Fatalf("Failed to wait for webhook availability: %s.", ctx.Err())
 		}
 
-		conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), timeout)
+		conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, strconv.Itoa(port)))
 		if err != nil {
-			t.Logf("Webhook port is not ready, will retry in %v: %s", timeout, err)
+			t.Logf("Webhook port is not ready, will retry in %v: %s", dialer.Timeout, err)
 
 			continue
 		}

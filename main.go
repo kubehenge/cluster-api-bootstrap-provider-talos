@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	cgrecord "k8s.io/client-go/tools/record"
 	"k8s.io/component-base/logs"
 	logsv1 "k8s.io/component-base/logs/api/v1"
 	"k8s.io/klog/v2"
@@ -81,12 +80,6 @@ func main() {
 	// klog.Background will automatically use the right logger.
 	ctrl.SetLogger(klog.Background())
 
-	// Machine and cluster operations can create enough events to trigger the event recorder spam filter
-	// Setting the burst size higher ensures all events will be recorded and submitted to the API
-	broadcaster := cgrecord.NewBroadcasterWithCorrelatorOptions(cgrecord.CorrelatorOptions{
-		BurstSize: 100,
-	})
-
 	tlsOptions, metricOpts, err := flags.GetManagerOptions(managerOptions)
 	if err != nil {
 		setupLog.Error(err, "unable to get manager options")
@@ -100,7 +93,6 @@ func main() {
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "controller-leader-election-cabpt",
 		Metrics:                *metricOpts,
-		EventBroadcaster:       broadcaster,
 		HealthProbeBindAddress: healthAddr,
 		Cache: cache.Options{
 			ByObject: map[client.Object]cache.ByObject{

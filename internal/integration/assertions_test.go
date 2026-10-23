@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	bootstrapv1beta1 "github.com/siderolabs/cluster-api-bootstrap-provider-talos/api/v1beta1"
 	talosclientconfig "github.com/siderolabs/talos/pkg/machinery/client/config"
 	machineconfig "github.com/siderolabs/talos/pkg/machinery/config"
 	"github.com/siderolabs/talos/pkg/machinery/config/configloader"
@@ -22,6 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	capiv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	bootstrapv1beta1 "github.com/siderolabs/cluster-api-bootstrap-provider-talos/api/v1beta1"
 )
 
 // assertClusterClientConfig checks that Talos client config as a cluster-wide secret is valid.
@@ -54,7 +55,7 @@ func assertMachineConfiguration(ctx context.Context, t *testing.T, c client.Clie
 	provider, err := configloader.NewFromBytes(bootstrapDataSecret.Data["value"])
 	require.NoError(t, err)
 
-	_, err = provider.Validate(runtimeMode{false}, validation.WithStrict())
+	_, err = provider.ValidateAsClient(runtimeMode{false}, validation.WithStrict())
 	assert.NoError(t, err)
 
 	return provider
