@@ -1,11 +1,16 @@
 # Running integration tests
 
-Bring up Talos cluster (or any other Kubernetes clusters).
+The tests run against a Talos cluster in Docker on linux/amd64, as CI runs them:
 
-Put `kubeconfig` to the root of the repository (for Talos: `talosctl -n <IP> kubeconfig -f kubeconfig`).
+```sh
+make env-up integration
+make env-down
+```
 
-Create release with fixed tag: `make release-manifests TAG=v0.6.0` (update release if the CRDs are updated).
+`make env-up` creates the cluster with the pinned talosctl and writes its kubeconfig to `_out/env`.
+`make integration` installs Cluster API and its Docker infrastructure provider into that cluster with
+clusterctl, at the release go.mod requires, installs the CRDs from `config`, and runs the controller
+and its webhooks in the test process.
 
-Run tests: `make test TAG=v0.6.0`.
-
-Tests clean up after the run, so they can be run repeatedly against the cluster.
+Tests clean up after the run, so they can be run repeatedly against the cluster;
+`INTEGRATION_SKIP_CLEANUP=1` keeps what they create.

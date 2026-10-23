@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/url"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -207,8 +206,9 @@ func installCAPI(ctx context.Context, t *testing.T) {
 	t.Log("Getting CAPI core components versions ...")
 
 	initOpts := clusterctlclient.InitOptions{
+		CoreProvider:            "cluster-api:" + CAPIVersion,
 		BootstrapProviders:      []string{clusterctlclient.NoopProvider},
-		InfrastructureProviders: []string{"docker"},
+		InfrastructureProviders: []string{"docker:" + CAPIVersion},
 		ControlPlaneProviders:   []string{clusterctlclient.NoopProvider},
 		WaitProviders:           true,
 	}
@@ -245,7 +245,7 @@ func startTestEnv(ctx context.Context, t *testing.T) (*rest.Config, *envtest.Env
 
 	testEnv := &envtest.Environment{
 		Config:            cfg,
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", Artifacts, "bootstrap-talos", Tag)},
+		CRDDirectoryPaths: []string{Components},
 		CRDInstallOptions: envtest.CRDInstallOptions{
 			ErrorIfPathMissing: true,
 			MaxTime:            20 * time.Second,

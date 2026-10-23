@@ -24,10 +24,5 @@ bin
 *~
 _out/
 
-talosctl
-talosconfig
-kubeconfig
-coverage.txt
-
 # Tilt build files
 .tiltbuild

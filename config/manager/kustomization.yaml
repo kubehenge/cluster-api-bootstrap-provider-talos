@@ -2,4 +2,4 @@ resources:
 - manager.yaml
 images:
 - name: controller
-  newName: ghcr.io/siderolabs/cluster-api-talos-controller
+  newName: ghcr.io/kubehenge/cluster-api-bootstrap-provider-talos

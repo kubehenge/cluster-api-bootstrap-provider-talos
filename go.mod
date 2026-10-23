@@ -1,9 +1,8 @@
 module github.com/siderolabs/cluster-api-bootstrap-provider-talos
 
-go 1.26.5
+go 1.27.3
 
 require (
-	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0

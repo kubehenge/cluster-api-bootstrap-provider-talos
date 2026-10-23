@@ -1,7 +1,7 @@
 {
     "name": "talos-bootstrap",
     "config": {
-      "image": "ghcr.io/siderolabs/cluster-api-talos-controller",
+      "image": "ghcr.io/kubehenge/cluster-api-bootstrap-provider-talos",
       "live_reload_deps": [
         "main.go",
         "go.mod",

@@ -4,11 +4,11 @@
 
 package integration
 
-// TalosVersion is set by the build process.
+// TalosVersion is the Talos release of the cluster the tests run against; make integration sets it.
 var TalosVersion string
 
-// Artifacts is set by the build process.
-var Artifacts string
+// CAPIVersion is the Cluster API release the tests install; make integration sets it.
+var CAPIVersion string
 
-// Tag is set by the build process.
-var Tag string
+// Components is the rendered provider components file the CRDs are read from; make integration sets it.
+var Components string
