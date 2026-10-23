@@ -147,5 +147,5 @@ type TalosConfigList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&TalosConfig{}, &TalosConfigList{})
+	objectTypes = append(objectTypes, &TalosConfig{}, &TalosConfigList{})
 }
