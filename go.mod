@@ -1,4 +1,4 @@
-module github.com/siderolabs/cluster-api-bootstrap-provider-talos
+module github.com/kubehenge/cluster-api-bootstrap-provider-talos
 
 go 1.27.3
 

@@ -47,8 +47,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 
-	bootstrapv1beta1 "github.com/siderolabs/cluster-api-bootstrap-provider-talos/api/v1beta1"
-	"github.com/siderolabs/cluster-api-bootstrap-provider-talos/internal/configowner"
+	bootstrapv1beta1 "github.com/kubehenge/cluster-api-bootstrap-provider-talos/api/v1beta1"
+	"github.com/kubehenge/cluster-api-bootstrap-provider-talos/internal/configowner"
 	// +kubebuilder:scaffold:imports
 )
 

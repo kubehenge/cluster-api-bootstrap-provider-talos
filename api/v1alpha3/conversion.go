@@ -11,7 +11,7 @@ import (
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	bsv1beta1 "github.com/siderolabs/cluster-api-bootstrap-provider-talos/api/v1beta1"
+	bsv1beta1 "github.com/kubehenge/cluster-api-bootstrap-provider-talos/api/v1beta1"
 )
 
 // ConvertTo converts this TalosConfig to the Hub version (v1beta1).

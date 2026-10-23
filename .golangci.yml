@@ -39,4 +39,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/siderolabs/cluster-api-bootstrap-provider-talos
+        - github.com/kubehenge/cluster-api-bootstrap-provider-talos

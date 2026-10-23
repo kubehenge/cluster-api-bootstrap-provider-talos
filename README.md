@@ -7,6 +7,7 @@ It also keeps the cluster-wide Talos secrets and a `talosconfig` for the Talos A
 It is used together with a control plane provider such as the [Cluster API Control Plane Provider Talos](https://github.com/kubehenge/cluster-api-control-plane-provider-talos).
 
 This fork is maintained primarily for [Kubehenge](https://kubehenge.dev), and it is open to anyone: issues and pull requests are welcome.
+Report bugs and ask questions in [this repository's issues](https://github.com/kubehenge/cluster-api-bootstrap-provider-talos/issues), and security problems privately, as [SECURITY.md](.github/SECURITY.md) describes; [CONTRIBUTING.md](.github/CONTRIBUTING.md) covers pull requests.
 
 ## Compatibility
 
@@ -113,6 +114,7 @@ gh attestation verify bootstrap-components.yaml --repo kubehenge/cluster-api-boo
 
 ## Building
 
+The Go module is `github.com/kubehenge/cluster-api-bootstrap-provider-talos`.
 Everything builds natively with Go and the tools the Makefile installs into `_out/bin`; `make help` lists the targets.
 
 ```shell
@@ -127,8 +129,8 @@ The integration tests need Docker on linux/amd64: `make env-up integration` crea
 
 This provider was created by [Sidero Labs](https://www.siderolabs.com/), who keep the original at [siderolabs/cluster-api-bootstrap-provider-talos](https://github.com/siderolabs/cluster-api-bootstrap-provider-talos).
 The Cluster API v1.14 port, the guard for machine configurations without cluster settings and the template metadata build on the community forks of Karsten Nielsen and Nick Atkins.
-`CHANGELOG.md` holds the history of the Sidero Labs releases.
+[CHANGELOG.md](CHANGELOG.md) lists the changes of this fork's releases and links the history of the Sidero Labs releases.
 
 ## Licence
 
-[Mozilla Public License 2.0](LICENSE). `internal/configowner` is copied from Cluster API and stays under the Apache License 2.0 named in its files.
+[Mozilla Public License 2.0](LICENSE). `internal/configowner/configowner.go` is copied from Cluster API and stays under the Apache License 2.0 named in it.
