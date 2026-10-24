@@ -129,7 +129,7 @@ Every image and manifest that environment pulls is pinned by digest or SHA-256 (
 ## Credits
 
 This provider was created by [Sidero Labs](https://www.siderolabs.com/), who keep the original at [siderolabs/cluster-api-bootstrap-provider-talos](https://github.com/siderolabs/cluster-api-bootstrap-provider-talos).
-The Cluster API v1.14 port, the guard for machine configurations without cluster settings and the template metadata build on the community forks of Karsten Nielsen and Nick Atkins.
+A few fixes are pulled in from the community's forks.
 [CHANGELOG.md](CHANGELOG.md) lists the changes of this fork's releases and links the history of the Sidero Labs releases.
 
 ## Licence
