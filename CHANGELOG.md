@@ -2,6 +2,10 @@
 
 The changes of each release of this fork. The release pages on GitHub list every commit.
 
+## v0.7.0
+
+The first final release of this fork. The controller is the one of v0.7.0-alpha.5; the integration tests now pin every image and manifest they use by digest.
+
 ## v0.7.0-alpha.5
 
 - The Go module is now `github.com/kubehenge/cluster-api-bootstrap-provider-talos`; code that imports the API types has to change its import paths.
